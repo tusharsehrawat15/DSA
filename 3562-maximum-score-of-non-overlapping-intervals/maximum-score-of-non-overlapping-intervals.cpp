@@ -1,73 +1,84 @@
 class Solution {
-    struct State {
-        long long score = 0;
-        vector<int> indices;
-        bool done = false;
+    struct Node {
+        long long sum = 0;
+        array<int, 4> id = {0, 0, 0, 0};
+        int cnt = 0;
     };
 
-    vector<array<State, 5>> dp;
-    vector<array<int, 4>> a;
+    bool better(const Node& a, const Node& b) {
+        if (a.sum != b.sum) return a.sum > b.sum;
 
-    State solve(int i, int k) {
-        if (i == a.size() || k == 0)
-            return {0, {}, true};
+        int n = min(a.cnt, b.cnt);
 
-        if (dp[i][k].done)
-            return dp[i][k];
-
-        State skip = solve(i + 1, k);
-
-        int r = a[i][1];
-        int w = a[i][2];
-        int idx = a[i][3];
-
-        int lo = i + 1, hi = a.size();
-
-        while (lo < hi) {
-            int mid = lo + (hi - lo) / 2;
-            if (a[mid][0] > r)
-                hi = mid;
-            else
-                lo = mid + 1;
+        for (int i = 0; i < n; i++) {
+            if (a.id[i] != b.id[i])
+                return a.id[i] < b.id[i];
         }
 
-        State next = solve(lo, k - 1);
-
-        State take;
-        take.score = w + next.score;
-        take.indices = next.indices;
-        take.indices.push_back(idx);
-        sort(take.indices.begin(), take.indices.end());
-        take.done = true;
-
-        if (take.score > skip.score)
-            return dp[i][k] = take;
-
-        if (take.score < skip.score)
-            return dp[i][k] = skip;
-
-        if (take.indices < skip.indices)
-            return dp[i][k] = take;
-
-        return dp[i][k] = skip;
+        return a.cnt < b.cnt;
     }
 
 public:
     vector<int> maximumWeight(vector<vector<int>>& intervals) {
         int n = intervals.size();
 
-        a.clear();
-        a.reserve(n);
+        vector<array<int, 4>> a(n);
 
         for (int i = 0; i < n; i++) {
-            a.push_back({intervals[i][0], intervals[i][1],
-                         intervals[i][2], i});
+            a[i] = {intervals[i][0], intervals[i][1],
+                    intervals[i][2], i};
         }
 
         sort(a.begin(), a.end());
 
-        dp.assign(n, {});
+        vector<int> next(n);
 
-        return solve(0, 4).indices;
+        for (int i = 0; i < n; i++) {
+            int l = i + 1, r = n;
+
+            while (l < r) {
+                int m = l + (r - l) / 2;
+
+                if (a[m][0] > a[i][1])
+                    r = m;
+                else
+                    l = m + 1;
+            }
+
+            next[i] = l;
+        }
+
+        vector<Node> dp[5];
+
+        for (int k = 0; k <= 4; k++)
+            dp[k].resize(n + 1);
+
+        for (int k = 1; k <= 4; k++) {
+            for (int i = n - 1; i >= 0; i--) {
+                dp[k][i] = dp[k][i + 1];
+
+                Node take = dp[k - 1][next[i]];
+
+                take.sum += a[i][2];
+
+                for (int j = take.cnt; j > 0; j--)
+                    take.id[j] = take.id[j - 1];
+
+                take.id[0] = a[i][3];
+                take.cnt++;
+
+                sort(take.id.begin(), take.id.begin() + take.cnt);
+
+                if (better(take, dp[k][i]))
+                    dp[k][i] = take;
+            }
+        }
+
+        vector<int> ans;
+
+        for (int i = 0; i < dp[4][0].cnt; i++)
+            ans.push_back(dp[4][0].id[i]);
+
+        return ans;
     }
 };
